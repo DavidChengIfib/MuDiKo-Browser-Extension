@@ -1,0 +1,10 @@
+{
+  "name": "mudiko-browser-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-Extension für den MuDiKo Musik Hub (Prototyp: ZIP-Upload aus Google AI Studio).",
+  "scripts": {
+    "test": "node --test"
+  }
+}

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MuDiKo Hub-Upload</title>
+  <link rel="stylesheet" href="sidepanel.css">
+  <script type="module" src="sidepanel.js"></script>
+</head>
+<body>
+  <header class="header">
+    <img src="icons/icon-48.png" alt="" class="logo" width="40" height="40">
+    <div>
+      <h1>Hub-Upload</h1>
+      <p class="subtitle">AI-Studio-Projekt an MuDiKo senden</p>
+    </div>
+  </header>
+  <div class="rainbow" aria-hidden="true"></div>
+
+  <main>
+    <section class="card" aria-label="Verbindung zum Hub">
+      <div class="hub-row">
+        <span class="dot" id="hub-dot" aria-hidden="true"></span>
+        <div class="grow">
+          <strong id="hub-status">Verbinde …</strong>
+          <small id="hub-address" class="muted"></small>
+        </div>
+        <button type="button" class="link" id="hub-edit">Ändern</button>
+      </div>
+      <p class="hint" id="hub-hint" hidden></p>
+      <div class="actions" id="hub-actions" hidden>
+        <button type="button" id="hub-login">Im Hub anmelden</button>
+        <button type="button" class="secondary" id="hub-recheck">Erneut prüfen</button>
+      </div>
+      <form id="hub-form" class="stack" hidden>
+        <label>Hub-Adresse
+          <input id="hub-url" type="url" required placeholder="http://localhost:3000">
+        </label>
+        <p class="error" id="hub-form-error" role="alert" hidden></p>
+        <div class="actions">
+          <button type="submit">Speichern</button>
+          <button type="button" class="secondary" id="hub-cancel">Abbrechen</button>
+        </div>
+      </form>
+    </section>
+
+    <form class="card stack" id="deploy-form" novalidate>
+      <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="ZIP-Datei auswählen">
+        <input type="file" id="zip-input" accept=".zip,application/zip" hidden>
+        <strong id="drop-title">ZIP hier ablegen</strong>
+        <span id="drop-hint" class="muted">oder klicken und auswählen</span>
+      </div>
+      <p class="source" id="zip-source" hidden></p>
+
+      <label>App-Name
+        <input id="app-name" maxlength="100" autocomplete="off">
+      </label>
+      <label>Beschreibung
+        <textarea id="app-description" maxlength="1000" rows="3"></textarea>
+      </label>
+      <label>Tags <small class="muted">mit Komma trennen</small>
+        <input id="app-tags" autocomplete="off" placeholder="z. B. Lernpfad, Klasse 7">
+      </label>
+      <div class="chips" id="tag-suggestions"></div>
+
+      <button type="submit" id="deploy-button" class="wide" disabled>An MuDiKo senden</button>
+      <p class="error" id="form-error" role="alert" hidden></p>
+    </form>
+
+    <section class="card" id="progress" hidden aria-label="Fortschritt">
+      <h2>Fortschritt</h2>
+      <ol class="steps" id="steps" aria-live="polite"></ol>
+      <p class="error" id="job-error" role="alert" hidden></p>
+      <details id="job-details" hidden>
+        <summary>Technische Details</summary>
+        <pre id="job-log"></pre>
+      </details>
+      <div class="success" id="job-success" hidden>
+        <strong>Fertig, die App ist im Hub.</strong>
+        <a id="job-link" class="button" target="_blank" rel="noopener">App öffnen</a>
+      </div>
+    </section>
+
+    <details class="card diagnostics" id="diagnostics">
+      <summary>Diagnose für den Test</summary>
+      <ul id="diag-list"></ul>
+      <div class="actions">
+        <button type="button" class="secondary" id="diag-copy">Kopieren</button>
+        <button type="button" class="secondary" id="diag-clear">Leeren</button>
+      </div>
+    </details>
+  </main>
+</body>
+</html>
