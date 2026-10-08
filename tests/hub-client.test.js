@@ -21,40 +21,44 @@ test('parseTags trims, drops empty entries and duplicates', () => {
   assert.deepEqual(parseTags(' Lernpfad, ,Klasse 7, Lernpfad '), ['Lernpfad', 'Klasse 7']);
 });
 
-test('startDeployment sends the same form fields as the hub import page', async () => {
+test('submitProject sends the ZIP to the waiting list, not straight to deployment', async () => {
   const calls = [];
   const client = createHubClient('http://localhost:3000', async (url, options) => {
     calls.push({ url, options });
-    return jsonResponse(202, { success: true, deploymentJobId: 'job-1', job: { id: 'job-1', status: 'queued' } });
+    return jsonResponse(201, { success: true, submission: { id: 'a'.repeat(32), name: 'Quiz', status: 'pending' } });
   });
   const zipFile = new File(['PK'], 'projekt.zip', { type: 'application/zip' });
 
-  const job = await client.startDeployment({
-    name: 'Quiz', description: 'Ein Quiz', tags: ['Lernpfad'], zipFile, csrfToken: 'csrf-123',
+  const submission = await client.submitProject({
+    name: 'Quiz', description: 'Ein Quiz', tags: ['Lernpfad'], zipFile, submitterName: 'Frau Müller',
   });
 
-  assert.equal(job.id, 'job-1');
+  assert.equal(submission.status, 'pending');
   const [{ url, options }] = calls;
-  assert.equal(url, 'http://localhost:3000/api/app-hub/deployments');
+  assert.equal(url, 'http://localhost:3000/api/app-hub/submissions');
   assert.equal(options.method, 'POST');
-  assert.equal(options.credentials, 'include');
-  assert.equal(options.headers['X-CSRF-Token'], 'csrf-123');
+  assert.equal(options.headers, undefined, 'no login token is needed');
+  assert.equal(options.body.get('submitterName'), 'Frau Müller');
   assert.equal(options.body.get('name'), 'Quiz');
   assert.equal(options.body.get('description'), 'Ein Quiz');
   assert.equal(options.body.get('tags'), '["Lernpfad"]');
+  assert.equal(options.body.get('source'), 'browser-extension');
   assert.equal(options.body.get('projectZip').name, 'projekt.zip');
+  assert.equal(client.submissionsUrl, 'http://localhost:3000/admin/submissions');
 });
 
 test('hub error messages are passed on together with the HTTP status', async () => {
   const client = createHubClient('http://localhost:3000', async () => (
-    jsonResponse(401, { success: false, error: 'Admin-Anmeldung erforderlich.' })
+    jsonResponse(400, { success: false, error: 'Unsicherer Dateipfad im ZIP-Archiv erkannt (Zip Slip).' })
   ));
-  await assert.rejects(client.getDeployment('job-1'), (error) => (
-    error.message === 'Admin-Anmeldung erforderlich.' && error.status === 401
-  ));
+  const zipFile = new File(['PK'], 'projekt.zip', { type: 'application/zip' });
+  await assert.rejects(
+    client.submitProject({ name: 'Quiz', description: '', tags: [], zipFile }),
+    (error) => error.message.includes('Zip Slip') && error.status === 400,
+  );
 });
 
 test('an unreachable hub is reported with status 0', async () => {
   const client = createHubClient('http://localhost:3000', async () => { throw new TypeError('Failed to fetch'); });
-  await assert.rejects(client.getSession(), (error) => error.status === 0 && /nicht erreichbar/.test(error.message));
+  await assert.rejects(client.getStatus(), (error) => error.status === 0 && /nicht erreichbar/.test(error.message));
 });

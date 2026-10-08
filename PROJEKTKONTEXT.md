@@ -96,7 +96,7 @@ Whitelist aktuell: `DavidChengIfib`, `DavidCheng1` (in der lokalen `.env`).
 
 ## 5. API des Hubs (Kurzreferenz)
 
-Öffentlich: `GET /api/apps`, `GET /api/apps/<slug>/thumbnail`, `GET /api/app-hub/status`, `GET /api/admin/session`, Login-Routen, `POST /api/github/webhook` (HMAC-signiert).
+Öffentlich: `POST /api/app-hub/submissions` (ZIP in die **Warteliste**, ohne Anmeldung, Limit 10 pro 10 Minuten, optional `submitterName`), `GET /api/apps`, `GET /api/apps/<slug>/thumbnail`, `GET /api/app-hub/status`, `GET /api/admin/session`, Login-Routen, `POST /api/github/webhook` (HMAC-signiert).
 
 Admin (Session-Cookie; alle POST/PATCH/DELETE zusätzlich `X-CSRF-Token`):
 
@@ -105,6 +105,8 @@ Admin (Session-Cookie; alle POST/PATCH/DELETE zusätzlich `X-CSRF-Token`):
 | `POST /api/admin/logout` | abmelden |
 | `GET /api/admin/dashboard` | Status aller Apps (Docker, Health, Version) |
 | `POST /api/app-hub/deployments` | ZIP-Deployment, multipart: `name`, `description`, `tags` (JSON-String), `projectZip`, optional `thumbnail` → 202 `{deploymentJobId}` |
+| `GET /api/admin/submissions` · `/<id>` · `/<id>/download` | Warteliste, Detail mit automatischer Prüfung, Original-ZIP |
+| `POST /api/admin/submissions/<id>/deploy` · `DELETE /api/admin/submissions/<id>` | Deployen (JSON `{"confirmed": true}` nötig) · Abweisen/Entfernen |
 | `GET /api/app-hub/deployments/<jobId>` | Job-Status pollen (Frontend: alle ~1,5 s) |
 | `POST /api/admin/deployments/<jobId>/cancel` | Build abbrechen |
 | `GET /api/admin/github/status` · `/repositories` · `/repositories/<owner>/<repo>/branches` | GitHub-Verbindung und Repo-Auswahl |
@@ -180,4 +182,5 @@ Die Extension wird in einem **separaten Projekt** gebaut. Falls sie mit dem Hub 
 - Alle Admin-Aktionen hängen am Cookie `mudiko_admin_session` (SameSite=Strict, Path `/api`) plus `X-CSRF-Token`. Ob und wie eine Extension diese Session mitnutzen kann (Host-Permissions, Cookies aus dem Extension-Kontext), muss geklärt werden; evtl. braucht es einen eigenen, tokenbasierten Zugang.
 - CORS erlaubt derzeit nur die MuDiKo-Origins; eine `chrome-extension://<id>`-Origin müsste gezielt ergänzt werden.
 - Passende Endpunkte: `POST /api/app-hub/deployments` (ZIP), `POST /api/admin/github/import` (Repo), Job-Status per `GET /api/app-hub/deployments/<jobId>`, App-Liste per `GET /api/apps`.
+- **Stand 2026-10-08:** Die Extension sendet ZIPs **ohne Anmeldung** an `POST /api/app-hub/submissions`. Sie landen in der Warteliste (`/admin/submissions`, Daten unter `/workspace/data/submissions`) und werden erst nach Freigabe durch einen Admin mit zweiter Bestätigung deployt. Details: `docs/APP_HUB_POC.md`, Abschnitt „Waiting list for submitted ZIPs“.
 - Deployt werden ausschließlich React+Vite/npm-Projekte; die Prüfung macht der Hub (`project_analyzer.py`), nicht der Client.

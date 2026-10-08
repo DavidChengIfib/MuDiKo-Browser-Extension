@@ -1,7 +1,5 @@
 import {
-  ACTIVE_JOB_STATUSES,
   DEFAULT_HUB_URL,
-  SESSION_COOKIE,
   createHubClient,
   normalizeHubUrl,
   parseTags,
@@ -10,24 +8,18 @@ import { readAiStudioMetadata } from './lib/zip-reader.js';
 
 const PENDING_KEY = 'pendingZip';
 const LOG_KEY = 'diagnostics';
-const POLL_INTERVAL_MS = 1500;
-const MAX_POLL_FAILURES = 20;
+const SENDER_KEY = 'submitterName';
 
-const LOGIN_HINT = 'Zum Hochladen brauchst du die Admin-Anmeldung des Hubs. Nach der Anmeldung aktualisiert sich diese Anzeige von selbst.';
-const COOKIE_NOT_SENT_HINT = 'Im Browser liegt ein Login-Cookie, aber der Hub erkennt die Anmeldung nicht. '
-  + 'Bist du im Hub-Tab angemeldet? Wenn ja, schickt der Browser das Cookie bei Anfragen der Extension nicht mit. '
-  + 'Dann braucht der Hub eine kleine Anpassung. Bitte unten die Diagnose kopieren.';
-const NOT_CONFIGURED_HINT = 'Die GitHub-Anmeldung ist auf diesem Hub nicht eingerichtet.';
+const OUTDATED_HUB_HINT = 'Dieser Hub hat noch keine Warteliste. Bitte den Hub aktualisieren.';
 
-const STEP_ICONS = { success: '✓', failed: '×', active: '●' };
-const SOURCE_LABELS = { download: 'Download', 'ai-studio': 'AI Studio', login: 'Login', upload: 'Upload', panel: 'Seitenleiste' };
+const SOURCE_LABELS = { download: 'Download', 'ai-studio': 'AI Studio', hub: 'Hub', upload: 'Upload', panel: 'Seitenleiste' };
 
 const $ = (id) => document.getElementById(id);
 
 const state = {
   hubUrl: DEFAULT_HUB_URL,
   hub: createHubClient(DEFAULT_HUB_URL),
-  session: null,
+  hubReady: false,
   maxUploadBytes: null,
   knownTags: [],
   tagsLoadedFor: '',
@@ -36,12 +28,9 @@ const state = {
   zipFromAiStudio: false,
   loadedCaptureAt: '',
   autofill: { name: '', description: '' },
-  job: null,
   busy: false,
-  pollTimer: 0,
-  pollFailures: 0,
   checkRun: 0,
-  lastLoginLog: '',
+  lastHubLog: '',
   diagnostics: [],
 };
 
@@ -54,16 +43,15 @@ function log(source, message) {
 function setHub(url) {
   state.hubUrl = url;
   state.hub = createHubClient(url);
-  state.session = null;
+  state.hubReady = false;
   $('hub-address').textContent = url;
 }
 
-function renderHub({ tone, text, hint = '', showLogin = false }) {
+function renderHub({ tone, text, hint = '' }) {
   $('hub-dot').className = `dot ${tone}`;
   $('hub-status').textContent = text;
   $('hub-hint').textContent = hint;
   $('hub-hint').hidden = !hint;
-  $('hub-login').hidden = !showLogin;
   $('hub-actions').hidden = tone === 'ok' || tone === '';
 }
 
@@ -71,56 +59,32 @@ async function checkHub({ quiet = false } = {}) {
   const run = ++state.checkRun;
   if (!quiet) renderHub({ tone: '', text: 'Verbinde …' });
   try {
-    const [session, status] = await Promise.all([
-      state.hub.getSession(),
-      state.hub.getStatus().catch(() => null),
-    ]);
+    const status = await state.hub.getStatus();
     if (run !== state.checkRun) return;
-    state.session = session.authenticated ? session : null;
-    state.maxUploadBytes = status?.maxUploadBytes ?? null;
+    state.maxUploadBytes = status.maxUploadBytes ?? null;
+    state.hubReady = Boolean(status.submissionsEnabled);
     loadTagSuggestions();
-
-    if (session.authenticated) {
-      renderHub({ tone: 'ok', text: `Angemeldet als @${session.username}` });
-      logLoginOnce(`Anmeldung erkannt (@${session.username}): Der Browser schickt das Login-Cookie bei Anfragen der Extension mit.`);
-    } else if (session.configured === false) {
-      renderHub({ tone: 'error', text: 'Anmeldung nicht möglich', hint: NOT_CONFIGURED_HINT });
-      logLoginOnce('Der Hub meldet: GitHub-Anmeldung nicht eingerichtet.');
+    if (state.hubReady) {
+      renderHub({ tone: 'ok', text: 'Mit dem Hub verbunden' });
+      logHubOnce('Hub erreichbar, die Warteliste ist bereit.');
     } else {
-      const cookieExists = await hasSessionCookie();
-      if (run !== state.checkRun) return;
-      renderHub({
-        tone: 'warn',
-        text: 'Nicht im Hub angemeldet',
-        hint: cookieExists ? COOKIE_NOT_SENT_HINT : LOGIN_HINT,
-        showLogin: true,
-      });
-      logLoginOnce(cookieExists
-        ? 'Login-Cookie ist im Browser vorhanden, der Hub erkennt aber keine Anmeldung.'
-        : 'Noch kein Login-Cookie für den Hub vorhanden (nicht angemeldet).');
+      renderHub({ tone: 'error', text: 'Hub zu alt', hint: OUTDATED_HUB_HINT });
+      logHubOnce('Hub erreichbar, hat aber noch keine Warteliste.');
     }
   } catch (error) {
     if (run !== state.checkRun) return;
-    state.session = null;
+    state.hubReady = false;
     renderHub({ tone: 'error', text: 'Hub nicht erreichbar', hint: error.message });
-    logLoginOnce(`Hub nicht erreichbar: ${error.message}`);
+    logHubOnce(`Hub nicht erreichbar: ${error.message}`);
   }
   renderZip();
-  updateDeployButton();
+  updateSubmitButton();
 }
 
-async function hasSessionCookie() {
-  try {
-    return Boolean(await chrome.cookies.get({ url: `${state.hubUrl}/api/`, name: SESSION_COOKIE }));
-  } catch {
-    return false;
-  }
-}
-
-function logLoginOnce(message) {
-  if (state.lastLoginLog === message) return;
-  state.lastLoginLog = message;
-  log('login', message);
+function logHubOnce(message) {
+  if (state.lastHubLog === message) return;
+  state.lastHubLog = message;
+  log('hub', message);
 }
 
 async function saveHubUrl(event) {
@@ -174,10 +138,11 @@ async function selectZip(file, { fromAiStudio = false } = {}) {
 
   state.zipFile = file;
   state.zipFromAiStudio = fromAiStudio;
+  $('result').hidden = true;
   state.zipNote = fromAiStudio ? 'Automatisch aus AI Studio übernommen' : '';
   if (!fromAiStudio) chrome.storage.session.remove(PENDING_KEY).catch(() => {});
   renderZip();
-  updateDeployButton();
+  updateSubmitButton();
 
   let metadata = null;
   try {
@@ -260,9 +225,9 @@ function toggleTag(tag) {
   renderTagChips();
 }
 
-// --- Deployment ------------------------------------------------------------
+// --- Submission ------------------------------------------------------------
 
-async function deploy(event) {
+async function submit(event) {
   event.preventDefault();
   const name = $('app-name').value.trim();
   if (!state.zipFile) {
@@ -274,106 +239,56 @@ async function deploy(event) {
     $('app-name').focus();
     return;
   }
-  if (!state.session) {
-    showError('Bitte zuerst im Hub anmelden.');
+  if (!state.hubReady) {
+    showError('Der Hub ist gerade nicht erreichbar.');
     return;
   }
 
   hideError();
+  $('result').hidden = true;
   setBusy(true);
-  showJob(null);
   try {
-    const job = await state.hub.startDeployment({
+    const submission = await state.hub.submitProject({
       name,
       description: $('app-description').value.trim(),
       tags: parseTags($('app-tags').value),
       zipFile: state.zipFile,
-      csrfToken: state.session.csrfToken,
+      submitterName: $('submitter-name').value.trim(),
     });
-    log('upload', `Upload angenommen, Deployment läuft: "${job.name}" (${formatBytes(state.zipFile.size)}).`);
+    log('upload', `In der Warteliste: "${submission.name}" (${formatBytes(state.zipFile.size)}), ${(submission.review?.warnings || []).length} Hinweise.`);
     if (state.zipFromAiStudio) chrome.storage.session.remove(PENDING_KEY).catch(() => {});
-    state.pollFailures = 0;
-    showJob(job);
-    schedulePoll();
-  } catch (error) {
-    setBusy(false);
-    showError(error.message);
-    log('upload', `Upload abgelehnt (HTTP ${error.status}): ${error.message}`);
-    if ([401, 403].includes(error.status)) checkHub({ quiet: true });
-  }
-}
-
-function schedulePoll() {
-  clearTimeout(state.pollTimer);
-  state.pollTimer = setTimeout(pollJob, POLL_INTERVAL_MS);
-}
-
-async function pollJob() {
-  try {
-    const job = await state.hub.getDeployment(state.job.id);
-    state.pollFailures = 0;
-    showJob(job);
-    if (ACTIVE_JOB_STATUSES.includes(job.status)) schedulePoll();
-    else finishJob(job);
-  } catch (error) {
-    // The hub can be briefly unreachable while Docker is busy building.
-    if (error.status === 0 && ++state.pollFailures < MAX_POLL_FAILURES) {
-      schedulePoll();
-      return;
-    }
-    setBusy(false);
-    $('job-error').textContent = error.message;
-    $('job-error').hidden = false;
-    if ([401, 403].includes(error.status)) checkHub({ quiet: true });
-  }
-}
-
-function finishJob(job) {
-  setBusy(false);
-  if (job.status === 'success') {
-    log('upload', `Deployment erfolgreich, die Kachel ist im Hub: ${job.app?.slug || job.slug}`);
+    showResult(submission);
     resetForm();
-  } else {
-    log('upload', `Deployment ${job.status === 'cancelled' ? 'abgebrochen' : 'fehlgeschlagen'}: ${job.error || 'ohne Meldung'}`);
+  } catch (error) {
+    showError(error.message);
+    log('upload', `Einreichen abgelehnt (HTTP ${error.status}): ${error.message}`);
+    if (error.status === 0) checkHub({ quiet: true });
+  } finally {
+    setBusy(false);
+    loadPendingCapture();
   }
-  loadPendingCapture();
 }
 
-function showJob(job) {
-  state.job = job;
-  $('progress').hidden = !job;
-  if (!job) return;
-
-  $('steps').replaceChildren(...(job.steps || []).map(renderStep));
-  const failed = ['failed', 'cancelled'].includes(job.status);
-  $('job-error').hidden = !failed;
-  $('job-error').textContent = failed
-    ? `Deployment ${job.status === 'cancelled' ? 'abgebrochen' : 'fehlgeschlagen'}: ${job.error || ''}`
-    : '';
-  $('job-details').hidden = !job.technicalDetails;
-  $('job-log').textContent = job.technicalDetails || '';
-  $('job-success').hidden = job.status !== 'success';
-  if (job.status === 'success') $('job-link').href = state.hub.appUrl(job.app?.slug || job.slug);
-}
-
-function renderStep(step) {
-  const item = document.createElement('li');
-  item.className = `step ${step.status}`;
-  const icon = document.createElement('span');
-  icon.className = 'step-icon';
-  icon.setAttribute('aria-hidden', 'true');
-  icon.textContent = STEP_ICONS[step.status] ?? '○';
-  const text = document.createElement('span');
-  const label = document.createElement('strong');
-  label.textContent = step.label;
-  text.append(label);
-  if (step.message) {
-    const message = document.createElement('small');
-    message.textContent = step.message;
-    text.append(message);
-  }
-  item.append(icon, text);
-  return item;
+function showResult(submission) {
+  const review = submission.review || {};
+  const warnings = review.warnings || [];
+  const facts = [
+    review.compatible
+      ? { text: `Erkannt: ${review.framework} · ${review.language}` }
+      : { text: `Nicht deploybar: ${review.compatibilityError}`, warn: true },
+    warnings.length
+      ? { text: `Automatische Prüfung: ${warnings.length === 1 ? '1 Hinweis. Der Admin sieht ihn' : `${warnings.length} Hinweise. Der Admin sieht sie`} in der Warteliste.`, warn: true }
+      : { text: 'Automatische Prüfung: keine Auffälligkeiten' },
+  ];
+  $('result-text').textContent = `„${submission.name}“ wartet jetzt auf die Prüfung durch einen Admin. Erst danach erscheint die App im Hub.`;
+  $('result-facts').replaceChildren(...facts.map((fact) => {
+    const item = document.createElement('li');
+    item.textContent = fact.text;
+    if (fact.warn) item.className = 'warn';
+    return item;
+  }));
+  $('result-link').href = state.hub.submissionsUrl;
+  $('result').hidden = false;
 }
 
 function resetForm() {
@@ -386,22 +301,20 @@ function resetForm() {
   $('app-tags').value = '';
   renderTagChips();
   renderZip();
-  updateDeployButton();
+  updateSubmitButton();
 }
 
 function setBusy(busy) {
   state.busy = busy;
-  for (const id of ['app-name', 'app-description', 'app-tags']) $(id).disabled = busy;
+  for (const id of ['app-name', 'app-description', 'app-tags', 'submitter-name']) $(id).disabled = busy;
   $('dropzone').setAttribute('aria-disabled', String(busy));
-  updateDeployButton();
+  updateSubmitButton();
 }
 
-function updateDeployButton() {
-  const button = $('deploy-button');
-  button.disabled = state.busy || !state.zipFile || !state.session;
-  if (state.busy) button.textContent = 'Wird deployt …';
-  else if (!state.session) button.textContent = 'Erst im Hub anmelden';
-  else button.textContent = 'An MuDiKo senden';
+function updateSubmitButton() {
+  const button = $('submit-button');
+  button.disabled = state.busy || !state.zipFile || !state.hubReady;
+  button.textContent = state.busy ? 'Wird gesendet …' : 'Zur Prüfung senden';
 }
 
 function showError(message) {
@@ -468,7 +381,9 @@ function bindEvents() {
   $('hub-cancel').addEventListener('click', () => toggleHubForm(false));
   $('hub-form').addEventListener('submit', saveHubUrl);
   $('hub-recheck').addEventListener('click', () => checkHub());
-  $('hub-login').addEventListener('click', () => chrome.tabs.create({ url: state.hub.loginUrl }));
+  $('submitter-name').addEventListener('change', (event) => {
+    chrome.storage.local.set({ [SENDER_KEY]: event.target.value.trim() }).catch(() => {});
+  });
 
   const dropzone = $('dropzone');
   const pickFile = () => { if (!state.busy) $('zip-input').click(); };
@@ -495,18 +410,10 @@ function bindEvents() {
   });
 
   $('app-tags').addEventListener('input', renderTagChips);
-  $('deploy-form').addEventListener('submit', deploy);
+  $('submit-form').addEventListener('submit', submit);
   $('diag-copy').addEventListener('click', copyDiagnostics);
   $('diag-clear').addEventListener('click', () => chrome.storage.session.remove(LOG_KEY));
 
-  // Pick up a login that happened in another tab.
-  let cookieTimer = 0;
-  chrome.cookies.onChanged.addListener(({ cookie }) => {
-    if (cookie.name !== SESSION_COOKIE) return;
-    if (!new URL(state.hubUrl).hostname.endsWith(cookie.domain.replace(/^\./, ''))) return;
-    clearTimeout(cookieTimer);
-    cookieTimer = setTimeout(() => checkHub({ quiet: true }), 300);
-  });
   window.addEventListener('focus', () => { if (!state.busy) checkHub({ quiet: true }); });
 
   chrome.storage.session.onChanged.addListener((changes) => {
@@ -517,8 +424,9 @@ function bindEvents() {
 
 async function init() {
   bindEvents();
-  const { hubUrl } = await chrome.storage.local.get('hubUrl');
+  const { hubUrl, [SENDER_KEY]: senderName } = await chrome.storage.local.get(['hubUrl', SENDER_KEY]);
   setHub(hubUrl || DEFAULT_HUB_URL);
+  $('submitter-name').value = senderName || '';
   renderZip();
   await checkHub();
   await Promise.all([loadPendingCapture(), renderDiagnostics()]);

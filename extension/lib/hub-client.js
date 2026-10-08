@@ -1,8 +1,6 @@
 // Talks to the same hub endpoints as Hub/Frontend/src/pages/apps/AppImportPage.jsx.
 
 export const DEFAULT_HUB_URL = 'http://localhost:3000';
-export const SESSION_COOKIE = 'mudiko_admin_session';
-export const ACTIVE_JOB_STATUSES = ['queued', 'running', 'cancelling'];
 
 export function normalizeHubUrl(value) {
   let url;
@@ -42,10 +40,7 @@ export function createHubClient(hubUrl, fetchImpl = (...args) => fetch(...args))
   }
 
   return {
-    loginUrl: `${hubUrl}/api/admin/auth/github/login`,
-    appUrl: (slug) => `${hubUrl}/apps/${encodeURIComponent(slug)}`,
-
-    getSession: () => request('/api/admin/session', {}, 'Der Admin-Status konnte nicht geladen werden.'),
+    submissionsUrl: `${hubUrl}/admin/submissions`,
 
     getStatus: () => request('/api/app-hub/status', {}, 'Der Hub-Status konnte nicht geladen werden.'),
 
@@ -54,27 +49,20 @@ export function createHubClient(hubUrl, fetchImpl = (...args) => fetch(...args))
       return Array.isArray(data.apps) ? data.apps : [];
     },
 
-    async startDeployment({ name, description, tags, zipFile, csrfToken }) {
+    // Lands in the hub's waiting list without a login; an administrator decides there whether it gets deployed.
+    async submitProject({ name, description, tags, zipFile, submitterName = '' }) {
       const formData = new FormData();
       formData.append('name', name);
       formData.append('description', description);
       formData.append('tags', JSON.stringify(tags));
+      formData.append('source', 'browser-extension');
+      formData.append('submitterName', submitterName);
       formData.append('projectZip', zipFile, zipFile.name);
-      const data = await request('/api/app-hub/deployments', {
+      const data = await request('/api/app-hub/submissions', {
         method: 'POST',
-        headers: { 'X-CSRF-Token': csrfToken },
         body: formData,
-      }, 'Das Deployment konnte nicht gestartet werden.');
-      return data.job;
-    },
-
-    async getDeployment(jobId) {
-      const data = await request(
-        `/api/app-hub/deployments/${encodeURIComponent(jobId)}`,
-        {},
-        'Der Deployment-Status konnte nicht geladen werden.',
-      );
-      return data.job;
+      }, 'Das Projekt konnte nicht eingereicht werden.');
+      return data.submission;
     },
   };
 }

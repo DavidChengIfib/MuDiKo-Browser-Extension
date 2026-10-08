@@ -24,7 +24,7 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["sidePanel", "storage", "downloads", "cookies"],
+  "permissions": ["sidePanel", "storage", "downloads"],
   "host_permissions": [
     "http://localhost/*",
     "http://127.0.0.1/*",
