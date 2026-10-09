@@ -41,52 +41,21 @@
   if (isTopFrame) log('AI-Studio-Seite geladen, ZIP-Erkennung ist aktiv.');
 
   function showToast(fileName) {
-    const host = document.createElement('div');
-    host.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:2147483647;';
-    const shadow = host.attachShadow({ mode: 'closed' });
-
-    const style = document.createElement('style');
-    style.textContent = `
-      .toast { font: 14px/1.4 system-ui, sans-serif; color: #fff; background: #2b2b2b; border-radius: 14px;
-        box-shadow: 0 8px 24px rgba(0,0,0,.35); padding: 14px 16px; max-width: 320px; display: grid; gap: 8px;
-        border-top: 4px solid #87BDCF; }
-      .file { opacity: .75; word-break: break-all; }
-      .row { display: flex; gap: 8px; }
-      button { font: inherit; font-weight: 600; border: 0; border-radius: 999px; padding: 6px 14px; cursor: pointer; }
-      .primary { background: #87BDCF; color: #222; }
-      .secondary { background: #575757; color: #fff; }`;
-
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    const title = document.createElement('strong');
-    title.textContent = 'MuDiKo: ZIP übernommen';
-    const file = document.createElement('span');
-    file.className = 'file';
-    file.textContent = fileName;
-    const row = document.createElement('div');
-    row.className = 'row';
-    const open = document.createElement('button');
-    open.className = 'primary';
-    open.textContent = 'Seitenleiste öffnen';
-    const close = document.createElement('button');
-    close.className = 'secondary';
-    close.textContent = 'Schließen';
-    row.append(open, close);
-    toast.append(title, file, row);
-    shadow.append(style, toast);
-    document.documentElement.append(host);
-
-    const remove = () => host.remove();
-    const timer = setTimeout(remove, 15000);
-    close.addEventListener('click', remove);
-    open.addEventListener('click', async () => {
-      const reply = await chrome.runtime.sendMessage({ type: 'mudiko:open-panel' }).catch(() => null);
-      if (reply?.opened) {
-        clearTimeout(timer);
-        remove();
-      } else {
-        file.textContent = 'Bitte oben rechts auf das MuDiKo-Symbol klicken.';
-      }
+    globalThis.mudikoToast({
+      title: 'MuDiKo: ZIP übernommen',
+      text: fileName,
+      actions: [
+        {
+          label: 'Seitenleiste öffnen',
+          primary: true,
+          async onClick(toast) {
+            const reply = await chrome.runtime.sendMessage({ type: 'mudiko:open-panel' }).catch(() => null);
+            if (reply?.opened) toast.close();
+            else toast.setText('Bitte oben rechts auf das MuDiKo-Symbol klicken.');
+          },
+        },
+        { label: 'Schließen', onClick: (toast) => toast.close() },
+      ],
     });
   }
 })();

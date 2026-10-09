@@ -1,86 +1,81 @@
-# MuDiKo Browser-Extension (Prototyp)
+# MuDiKo für AI Studio (Browser-Extension, Prototyp)
 
-Erster Prototyp für Edge und Chrome: Ein Projekt, das in **Google AI Studio** als ZIP heruntergeladen wird, landet ohne Umweg in der **Warteliste des MuDiKo Musik Hubs**. Dort prüft ein Admin das Projekt, bevor es deployt wird.
+Chrome- und Edge-Extension für Lehrkräfte, die mit **Google AI Studio** Musik-Lern-Apps bauen. Sie öffnet sich als Seitenleiste mit drei Bereichen:
 
-```
-AI Studio → „Download ZIP“ → Extension übernimmt die ZIP automatisch
-→ Seitenleiste: Name und Beschreibung sind schon ausgefüllt, Tags wählen → „Zur Prüfung senden“
-→ Hub prüft die ZIP automatisch (ohne sie zu bauen) → Eintrag in der Warteliste
-→ Admin unter /admin/submissions: Deployen (mit zweiter Bestätigung), Herunterladen oder Abweisen
-```
+| Bereich | Was er kann |
+|---|---|
+| **Hochladen** | Ein AI-Studio-Projekt (ZIP) ohne Anmeldung zur Prüfung an den **MuDiKo Musik Hub** senden. Die ZIP aus „Download“ in AI Studio wird automatisch übernommen. |
+| **AI Studio** | **Generator:** Formular (Thema, Zielgruppe, Lernziele, Grenzen, Differenzierung, Wünsche) → **System Instruction** und **erster Prompt**, dazu fertige Folge-Prompts. **Bausteine:** Lernpfad-Grundgerüst, Quiz, Zuordnen per Drag & Drop, Klaviatur als Kontext für die KI. **Remix:** Lernpfade aus dem Hub aussuchen und als ZIP herunterladen (alle Apps, für die ein Admin Remix eingeschaltet hat). |
+| **Einstellungen** | Hub-Adresse und Diagnose-Protokoll für Tests. |
 
-Die Warteliste braucht den Hub-Stand mit `POST /api/app-hub/submissions` (siehe `docs/APP_HUB_POC.md` im Hub-Repo, Abschnitt „Waiting list for submitted ZIPs“).
+Texte aus Generator und Bausteinen lassen sich **direkt in AI Studio einfügen**: die System Instruction unter Einstellungen → *System Instructions* → *Custom Instructions*, Prompts und Bausteine in das Chat-Feld.
 
 ## Installieren
 
-Die Extension ist eine normale Chrome-Extension (Manifest V3, ab Chrome 116). Edge nutzt dieselbe Technik, deshalb läuft sie dort unverändert.
+Normale Chrome-Extension (Manifest V3, ab Chrome 116). Edge nutzt dieselbe Technik.
 
 1. Hub lokal starten (im Hub-Repo): `docker compose -f docker-compose.dev.yml up -d`
 2. Chrome: `chrome://extensions` öffnen (Edge: `edge://extensions`).
 3. **Entwicklermodus** einschalten.
 4. **Entpackte Erweiterung laden** und den Ordner `extension/` auswählen (nicht den Projektordner).
-5. Das MuDiKo-Symbol in der Symbolleiste anheften. Ein Klick darauf öffnet die Seitenleiste.
+5. Das MuDiKo-Symbol anheften. Ein Klick darauf öffnet die Seitenleiste.
 
-Nach jeder Code-Änderung auf der Erweiterungsseite auf „Neu laden“ klicken. **Danach bereits offene AI-Studio-Tabs neu laden**, sonst ist dort die ZIP-Erkennung nicht aktiv.
+Nach jeder Code-Änderung auf der Erweiterungsseite auf „Neu laden“ klicken und **offene AI-Studio-Tabs neu laden**, sonst fehlen dort ZIP-Erkennung und Einfügen.
 
-Standard-Adresse des Hubs ist `http://localhost:3000`. Über „Ändern“ in der Seitenleiste lässt sich eine andere Adresse eintragen, z. B. `https://music.ifib.eu`.
+## So testest du
 
-## Was getestet werden soll
+### Hochladen
+1. In AI Studio ein Projekt über „Download“ als ZIP herunterladen. Unten rechts erscheint **„MuDiKo: ZIP übernommen“**.
+2. In der Seitenleiste unter **Hochladen** sind Name und Beschreibung schon ausgefüllt. Tags wählen, optional **Dein Name** eintragen, **Zur Prüfung senden**.
+3. Im Hub unter **Warteliste** (`/admin/submissions`) prüft ein Admin das Projekt und deployt es.
 
-### Test 1: Verbindung zum Hub
+Klappt die automatische Übernahme nicht, die ZIP in das Feld „ZIP hier ablegen“ ziehen.
 
-Eine Anmeldung ist nicht nötig, auch kein GitHub-Konto. In der Seitenleiste muss **„Mit dem Hub verbunden“** stehen (grüner Punkt). Steht dort „Hub zu alt“, fehlt dem Hub noch die Warteliste.
+### Generator und Einfügen in AI Studio
+1. **AI Studio → Generator**: Thema eintragen, Fragen beantworten, **System Instruction & Prompt erstellen**. Das Formular wird gespeichert.
+2. AI-Studio-Projekt im aktiven Tab öffnen und bei der System Instruction auf **In AI Studio einfügen** klicken.
+3. In AI Studio Einstellungen → *System Instructions* → *Custom Instructions* öffnen und **in das Textfeld klicken**. Die Extension füllt das Feld (sie wartet bis zu 3 Minuten). Erkennt sie es von selbst, reicht schon das Öffnen. Ist sie sich bei einem angeklickten Feld unsicher, fragt sie „hier einfügen?“. Steht schon Text im Feld, fragt sie: ersetzen, anhängen oder abbrechen.
+4. Beim Prompt **In AI Studio einfügen** klicken, dann ins Chat-Feld klicken. Abschicken machst du selbst.
 
-### Test 2: Wird der AI-Studio-Download automatisch übernommen?
+Der Text liegt in jedem Fall auch in der Zwischenablage (Strg+V). Weil Google den Aufbau der AI-Studio-Seite nicht dokumentiert, sucht die Extension die Felder über ihre Beschriftung. Findet sie ein Feld nicht, steht unter **Einstellungen → Diagnose**, welche Textfelder sie gesehen hat. Diesen Text bitte weitergeben.
 
-1. Ein Projekt in AI Studio öffnen und über AI Studio als ZIP herunterladen.
-2. Unten rechts auf der AI-Studio-Seite erscheint **„MuDiKo: ZIP übernommen“**, und am MuDiKo-Symbol erscheint eine **1**.
-3. In der Seitenleiste ist die ZIP eingetragen, Name und Beschreibung sind ausgefüllt.
-4. Tags wählen, optional **Dein Name** eintragen (wird gemerkt) und **Zur Prüfung senden**. Die Seitenleiste zeigt „In der Warteliste ✓“ und das Ergebnis der automatischen Prüfung.
-5. Im Hub unter **Warteliste** (Dashboard oder `/admin/submissions`) das Projekt prüfen und deployen.
-
-Klappt die automatische Übernahme nicht, die heruntergeladene ZIP einfach in das Feld „ZIP hier ablegen“ ziehen. Das funktioniert immer.
-
-### Diagnose
-
-Unten in der Seitenleiste unter **„Diagnose für den Test“** steht jeder Schritt: Hub-Verbindung, erkannte Downloads, Übernahme, Upload. Wenn etwas nicht klappt: **Kopieren** und den Text weitergeben. Gespeichert wird dort nur Dateiname, Herkunft (Adresse ohne Pfad) und Ergebnis, keine Inhalte. Die Liste wird beim Schließen des Browsers gelöscht.
-
-## Wie die automatische Übernahme funktioniert
-
-AI Studio baut die Export-ZIP im Browser und lädt sie über einen `blob:`-Link herunter. Eine Extension darf heruntergeladene Dateien nicht von der Festplatte lesen, deshalb:
-
-1. `capture-main.js` läuft in der AI-Studio-Seite und merkt sich jede ZIP, die die Seite erzeugt.
-2. `background.js` sieht, dass ein ZIP-Download von AI Studio fertig ist, und holt sich genau diese ZIP über `capture-bridge.js` aus dem Tab.
-3. Die Seitenleiste (`sidepanel.js`) lädt die ZIP und liest Name und Beschreibung aus der `metadata.json`, die jede AI-Studio-ZIP enthält.
-
-Hochgeladen wird erst, wenn man auf „Zur Prüfung senden“ klickt. Deployt wird erst, wenn ein Admin es in der Warteliste freigibt.
+### Bausteine und Remix
+- **Bausteine**: **Vorschau** öffnet den Baustein zum Ausprobieren, **In AI Studio einfügen** gibt ihn als Kontext in den Chat.
+- **Remix**: Liste aller Apps, für die ein Admin im Hub unter App-Details → **Remix einschalten** geklickt hat, mit Suche und **ZIP herunterladen**. AI Studio kann Projekte über **+ → Import from GitHub** übernehmen. Einen ZIP-Import beschreibt Google nicht, daher führt der Weg über ein eigenes GitHub-Repository oder eine IDE.
 
 ## Aufbau
 
 | Datei | Aufgabe |
 |---|---|
-| `extension/manifest.json` | Berechtigungen, Seitenleiste, Skripte für AI Studio |
-| `extension/background.js` | erkennt AI-Studio-Downloads, hält die ZIP bereit, führt das Diagnose-Protokoll |
-| `extension/capture-main.js`, `capture-bridge.js` | merken sich die ZIP in der AI-Studio-Seite, zeigen den Hinweis unten rechts |
-| `extension/sidepanel.*` | Seitenleiste: Hub-Verbindung, Formular, Senden, Ergebnis der Prüfung |
-| `extension/lib/hub-client.js` | Hub-API: Anmeldung, Status, App-Liste, Projekt in die Warteliste senden |
-| `extension/lib/zip-reader.js` | liest `metadata.json` aus der ZIP (ohne Fremdbibliothek) |
-| `extension/lib/downloads.js` | erkennt, ob ein Download eine AI-Studio-ZIP ist |
+| `extension/manifest.json` | Berechtigungen, Seitenleiste, Skripte für AI Studio, isolierte Vorschau-Seite |
+| `extension/sidepanel.html`, `sidepanel.css`, `sidepanel.js` | Seitenleiste mit Navigation links |
+| `extension/panel/upload.js` | Bereich Hochladen |
+| `extension/panel/studio.js` | Bereich AI Studio: Generator, Bausteine, Remix |
+| `extension/panel/settings.js` | Bereich Einstellungen: Hub-Adresse, Diagnose |
+| `extension/panel/hub.js`, `insert.js`, `util.js` | Hub-Verbindung, Einfügen in AI Studio, Hilfsfunktionen |
+| `extension/lib/prompt-builder.js` | baut System Instruction, Prompt und Folge-Prompts (ohne KI, nach festen Regeln) |
+| `extension/lib/templates.js` | Baustein-Bibliothek (HTML/CSS/JS im MuDiKo-Design) |
+| `extension/preview.html`, `preview.js` | isolierte Vorschau der Bausteine (Sandbox, ohne Extension-Rechte) |
+| `extension/background.js` | erkennt AI-Studio-Downloads, Diagnose-Protokoll |
+| `extension/capture-main.js`, `capture-bridge.js` | übernehmen die ZIP aus der AI-Studio-Seite |
+| `extension/studio-helper.js`, `content-toast.js` | Einfügen in AI Studio, Hinweise unten rechts |
+| `extension/lib/hub-client.js`, `zip-reader.js`, `downloads.js` | Hub-API, `metadata.json` lesen, Downloads erkennen |
 
-Berechtigungen: `sidePanel`, `storage`, `downloads` (Downloads erkennen). Zugriff auf `localhost`, `music.ifib.eu` und AI Studio. Andere Hub-Adressen werden beim Speichern einzeln erfragt.
+Berechtigungen: `sidePanel`, `storage`, `downloads`. Zugriff auf `localhost`, `music.ifib.eu` und AI Studio. Andere Hub-Adressen werden beim Speichern einzeln erfragt.
 
 ## Entwicklung
 
 Kein Build-Schritt: Die Dateien in `extension/` werden direkt geladen.
 
 ```powershell
-npm test   # 17 Tests: ZIP lesen, Hub-API, Download-Erkennung (Node 22)
+npm test   # Node 22: ZIP lesen, Hub-API, Download-Erkennung, Generator, Bausteine
 ```
 
 Die Test-ZIPs in `tests/fixtures/` erzeugt `python tests/fixtures/make_fixtures.py`.
 
 ## Grenzen des Prototyps
 
-- Einreichen geht ohne Anmeldung. Der Name ist freiwillig und wird nicht geprüft. Der Hub nimmt ohne Anmeldung höchstens 10 Projekte pro 10 Minuten an (alle zusammen).
-- Ein App-Bild (Thumbnail) kann noch nicht mitgeschickt werden. Das geht weiterhin im Hub.
-- Die automatische Übernahme hängt davon ab, dass AI Studio die ZIP weiterhin im Browser erzeugt. Ändert Google das, bleibt das Hineinziehen der ZIP.
+- Der Generator arbeitet mit festen Textbausteinen, nicht mit einer KI. Das ist kostenlos und braucht keinen API-Schlüssel.
+- Einreichen geht ohne Anmeldung. Der Hub nimmt ohne Anmeldung höchstens 10 Projekte pro 10 Minuten an.
+- Remix gibt es nur für Apps, die über die Warteliste deployt wurden (nur dort speichert der Hub den Quellcode), und erst, wenn ein Admin ihn für die App einschaltet. Apps mit gefundenen Schlüsseln im Code lassen sich nicht einschalten.
+- Ändert Google AI Studio seine Seite, kann das automatische Einfügen oder die ZIP-Übernahme ausfallen. Kopieren und Hineinziehen funktionieren immer.

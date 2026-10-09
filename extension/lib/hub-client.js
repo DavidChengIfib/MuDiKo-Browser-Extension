@@ -49,6 +49,14 @@ export function createHubClient(hubUrl, fetchImpl = (...args) => fetch(...args))
       return Array.isArray(data.apps) ? data.apps : [];
     },
 
+    // Apps an administrator released for remixing (source ZIP without .env files).
+    async listRemixApps() {
+      const data = await request('/api/app-hub/remix', {}, 'Die Remix-Liste konnte nicht geladen werden.');
+      return Array.isArray(data.apps) ? data.apps : [];
+    },
+
+    remixDownloadUrl: (slug) => `${hubUrl}/api/app-hub/remix/${encodeURIComponent(slug)}/download`,
+
     // Lands in the hub's waiting list without a login; an administrator decides there whether it gets deployed.
     async submitProject({ name, description, tags, zipFile, submitterName = '' }) {
       const formData = new FormData();

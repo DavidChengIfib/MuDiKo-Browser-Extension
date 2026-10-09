@@ -3,88 +3,253 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MuDiKo Hub-Upload</title>
+  <title>MuDiKo für AI Studio</title>
   <link rel="stylesheet" href="sidepanel.css">
+  <script src="lib/templates.js"></script>
   <script type="module" src="sidepanel.js"></script>
 </head>
 <body>
-  <header class="header">
-    <img src="icons/icon-48.png" alt="" class="logo" width="40" height="40">
-    <div>
-      <h1>Hub-Upload</h1>
-      <p class="subtitle">AI-Studio-Projekt zur Prüfung an MuDiKo senden</p>
-    </div>
-  </header>
   <div class="rainbow" aria-hidden="true"></div>
+  <div class="app">
+    <nav class="rail" aria-label="Bereiche">
+      <img src="icons/icon-48.png" alt="MuDiKo" class="rail-logo" width="36" height="36">
+      <button type="button" class="rail-item active" data-view="upload" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+        <span>Hochladen</span>
+      </button>
+      <button type="button" class="rail-item" data-view="studio">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
+        <span>AI Studio</span>
+      </button>
+      <span class="rail-spacer"></span>
+      <button type="button" class="rail-item" data-view="settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></svg>
+        <span>Einstellungen</span>
+      </button>
+    </nav>
 
-  <main>
-    <section class="card" aria-label="Verbindung zum Hub">
-      <div class="hub-row">
-        <span class="dot" id="hub-dot" aria-hidden="true"></span>
-        <div class="grow">
-          <strong id="hub-status">Verbinde …</strong>
-          <small id="hub-address" class="muted"></small>
+    <main class="content">
+      <!-- Hochladen ----------------------------------------------------------- -->
+      <section class="view" id="view-upload" aria-labelledby="upload-title">
+        <header class="view-header">
+          <h1 id="upload-title">Hochladen</h1>
+          <p class="subtitle">AI-Studio-Projekt zur Prüfung an den MuDiKo Hub senden</p>
+        </header>
+
+        <div class="hub-line">
+          <span class="dot" id="upload-hub-dot" aria-hidden="true"></span>
+          <div class="grow">
+            <strong id="upload-hub-status">Verbinde …</strong>
+            <small id="upload-hub-address" class="muted address"></small>
+          </div>
+          <button type="button" class="link" id="upload-hub-retry" hidden>Erneut prüfen</button>
+          <button type="button" class="link" id="upload-hub-settings">Ändern</button>
         </div>
-        <button type="button" class="link" id="hub-edit">Ändern</button>
-      </div>
-      <p class="hint" id="hub-hint" hidden></p>
-      <div class="actions" id="hub-actions" hidden>
-        <button type="button" class="secondary" id="hub-recheck">Erneut prüfen</button>
-      </div>
-      <form id="hub-form" class="stack" hidden>
-        <label>Hub-Adresse
-          <input id="hub-url" type="url" required placeholder="http://localhost:3000">
-        </label>
-        <p class="error" id="hub-form-error" role="alert" hidden></p>
-        <div class="actions">
-          <button type="submit">Speichern</button>
-          <button type="button" class="secondary" id="hub-cancel">Abbrechen</button>
+        <p class="hint" id="upload-hub-hint" hidden></p>
+
+        <form class="card stack" id="submit-form" novalidate>
+          <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="ZIP-Datei auswählen">
+            <input type="file" id="zip-input" accept=".zip,application/zip" hidden>
+            <strong id="drop-title">ZIP hier ablegen</strong>
+            <span id="drop-hint" class="muted">oder klicken und auswählen</span>
+          </div>
+          <p class="source" id="zip-source" hidden></p>
+
+          <label>App-Name
+            <input id="app-name" maxlength="100" autocomplete="off">
+          </label>
+          <label>Beschreibung
+            <textarea id="app-description" maxlength="1000" rows="3"></textarea>
+          </label>
+          <label>Tags <small class="muted">mit Komma trennen</small>
+            <input id="app-tags" autocomplete="off" placeholder="z. B. Lernpfad, Klasse 7">
+          </label>
+          <div class="chips" id="tag-suggestions"></div>
+          <label>Dein Name <small class="muted">optional, damit der Admin weiß, von wem das Projekt kommt</small>
+            <input id="submitter-name" maxlength="80" autocomplete="name" placeholder="z. B. Frau Müller">
+          </label>
+
+          <button type="submit" id="submit-button" class="wide" disabled>Zur Prüfung senden</button>
+          <p class="note">Das Projekt landet in der Warteliste des Hubs. Erst wenn ein Admin es freigibt, wird es deployt.</p>
+          <p class="error" id="form-error" role="alert" hidden></p>
+        </form>
+
+        <section class="card result" id="result" hidden aria-live="polite">
+          <h2>In der Warteliste ✓</h2>
+          <p id="result-text"></p>
+          <ul class="facts" id="result-facts"></ul>
+          <a id="result-link" class="link-small" target="_blank" rel="noopener">Für Admins: Warteliste im Hub öffnen</a>
+        </section>
+      </section>
+
+      <!-- AI Studio ----------------------------------------------------------- -->
+      <section class="view" id="view-studio" aria-labelledby="studio-title" hidden>
+        <header class="view-header">
+          <h1 id="studio-title">AI Studio</h1>
+          <p class="subtitle">Hilfen für deine App in Google AI Studio</p>
+        </header>
+
+        <div class="tabs" role="tablist">
+          <button type="button" class="studio-tab active" role="tab" aria-selected="true" data-pane="generator">Generator</button>
+          <button type="button" class="studio-tab" role="tab" aria-selected="false" data-pane="templates">Bausteine</button>
+          <button type="button" class="studio-tab" role="tab" aria-selected="false" data-pane="remix">Remix</button>
         </div>
-      </form>
-    </section>
 
-    <form class="card stack" id="submit-form" novalidate>
-      <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="ZIP-Datei auswählen">
-        <input type="file" id="zip-input" accept=".zip,application/zip" hidden>
-        <strong id="drop-title">ZIP hier ablegen</strong>
-        <span id="drop-hint" class="muted">oder klicken und auswählen</span>
-      </div>
-      <p class="source" id="zip-source" hidden></p>
+        <!-- Generator -->
+        <div class="studio-pane" id="pane-generator" role="tabpanel">
+          <p class="intro">Beantworte ein paar Fragen. Daraus entstehen eine <strong>System Instruction</strong> und ein <strong>erster Prompt</strong> für dein Projekt.</p>
+          <form class="stack" id="gen-form" novalidate>
+            <section class="card stack group">
+              <h3 class="group-title">Was soll entstehen?</h3>
+              <label>App-Typ <select id="gen-type"></select></label>
+              <label>Thema <input id="gen-topic" maxlength="160" placeholder="z. B. Intervalle hören und benennen"></label>
+            </section>
 
-      <label>App-Name
-        <input id="app-name" maxlength="100" autocomplete="off">
-      </label>
-      <label>Beschreibung
-        <textarea id="app-description" maxlength="1000" rows="3"></textarea>
-      </label>
-      <label>Tags <small class="muted">mit Komma trennen</small>
-        <input id="app-tags" autocomplete="off" placeholder="z. B. Lernpfad, Klasse 7">
-      </label>
-      <div class="chips" id="tag-suggestions"></div>
-      <label>Dein Name <small class="muted">optional, damit der Admin weiß, von wem das Projekt kommt</small>
-        <input id="submitter-name" maxlength="80" autocomplete="name" placeholder="z. B. Frau Müller">
-      </label>
+            <section class="card stack group">
+              <h3 class="group-title">Für wen?</h3>
+              <div class="row-2">
+                <label>Zielgruppe <select id="gen-audience"></select></label>
+                <label>Dauer <select id="gen-duration"></select></label>
+              </div>
+              <div class="field">
+                <span class="field-label">Geräte</span>
+                <div class="check-chips" id="gen-devices"></div>
+              </div>
+              <label>Sprache der App
+                <select id="gen-language"><option>Deutsch</option><option>Englisch</option></select>
+              </label>
+            </section>
 
-      <button type="submit" id="submit-button" class="wide" disabled>Zur Prüfung senden</button>
-      <p class="note">Das Projekt landet in der Warteliste des Hubs. Erst wenn ein Admin es freigibt, wird es deployt.</p>
-      <p class="error" id="form-error" role="alert" hidden></p>
-    </form>
+            <section class="card stack group">
+              <h3 class="group-title">Lernziele</h3>
+              <label>Was können die Schüler*innen danach? <small class="muted">ein Ziel pro Zeile</small>
+                <textarea id="gen-goals" rows="3" placeholder="große und kleine Terz unterscheiden&#10;Intervalle am Klavier finden"></textarea>
+              </label>
+            </section>
 
-    <section class="card result" id="result" hidden aria-live="polite">
-      <h2>In der Warteliste ✓</h2>
-      <p id="result-text"></p>
-      <ul class="facts" id="result-facts"></ul>
-      <a id="result-link" class="link-small" target="_blank" rel="noopener">Für Admins: Warteliste im Hub öffnen</a>
-    </section>
+            <section class="card stack group">
+              <h3 class="group-title">Grenzen</h3>
+              <div class="check-chips" id="gen-constraints"></div>
+              <label>Weitere Einschränkungen <small class="muted">optional</small>
+                <textarea id="gen-constraints-text" rows="2" placeholder="z. B. nur 1 Gerät pro Gruppe"></textarea>
+              </label>
+            </section>
 
-    <details class="card diagnostics" id="diagnostics">
-      <summary>Diagnose für den Test</summary>
-      <ul id="diag-list"></ul>
-      <div class="actions">
-        <button type="button" class="secondary" id="diag-copy">Kopieren</button>
-        <button type="button" class="secondary" id="diag-clear">Leeren</button>
-      </div>
-    </details>
-  </main>
+            <section class="card stack group">
+              <h3 class="group-title">Differenzierung</h3>
+              <div class="check-chips" id="gen-differentiation"></div>
+              <label>Eigene Ideen <small class="muted">optional</small>
+                <textarea id="gen-differentiation-text" rows="2" placeholder="z. B. Bonus-Level für schnelle Gruppen"></textarea>
+              </label>
+            </section>
+
+            <section class="card stack group">
+              <h3 class="group-title">Besondere Wünsche</h3>
+              <label class="sr-label">Besondere Wünsche
+                <textarea id="gen-wishes" rows="3" placeholder="z. B. Hörbeispiele mit Klavierklang, Urkunde am Ende"></textarea>
+              </label>
+            </section>
+
+            <p class="error" id="gen-error" role="alert" hidden></p>
+            <button type="submit" class="wide">System Instruction &amp; Prompt erstellen</button>
+            <button type="button" class="link center" id="gen-reset">Formular leeren</button>
+          </form>
+
+          <div class="stack" id="gen-output" hidden>
+            <section class="card stack output">
+              <div class="output-head">
+                <h2>System Instruction</h2>
+                <span class="badge">einmal pro Projekt</span>
+              </div>
+              <p class="muted small">In AI Studio unter Einstellungen → <strong>System Instructions</strong> → <strong>Custom Instructions</strong>. Du kannst den Text hier noch anpassen.</p>
+              <textarea id="gen-system" rows="10" spellcheck="false"></textarea>
+              <div class="actions">
+                <button type="button" class="secondary" id="gen-system-copy">Kopieren</button>
+                <button type="button" id="gen-system-insert">In AI Studio einfügen</button>
+              </div>
+              <p class="status" id="gen-system-status" hidden></p>
+            </section>
+
+            <section class="card stack output">
+              <div class="output-head">
+                <h2>Erster Prompt</h2>
+                <span class="badge">in den Chat</span>
+              </div>
+              <textarea id="gen-prompt" rows="9" spellcheck="false"></textarea>
+              <div class="actions">
+                <button type="button" class="secondary" id="gen-prompt-copy">Kopieren</button>
+                <button type="button" id="gen-prompt-insert">In AI Studio einfügen</button>
+              </div>
+              <p class="status" id="gen-prompt-status" hidden></p>
+            </section>
+
+            <section class="card stack output">
+              <h2>Weitere Prompts</h2>
+              <p class="muted small">Für den nächsten Schritt, wenn die erste Version steht.</p>
+              <ul class="followups" id="gen-followups"></ul>
+            </section>
+          </div>
+        </div>
+
+        <!-- Bausteine -->
+        <div class="studio-pane" id="pane-templates" role="tabpanel" hidden>
+          <p class="intro">Fertige Bausteine im MuDiKo-Design. Gib sie AI Studio als Kontext, die KI baut sie in deine App ein.</p>
+          <ul class="list" id="template-list"></ul>
+        </div>
+
+        <!-- Remix -->
+        <div class="studio-pane" id="pane-remix" role="tabpanel" hidden>
+          <p class="intro">Lernpfade, die im Music-Hub zum Remixen freigegeben sind, aussuchen, als ZIP herunterladen und daraus deine eigene Version bauen.</p>
+          <div class="search-row">
+            <input type="search" id="remix-search" placeholder="Suchen, z. B. Rhythmus" aria-label="Lernpfade suchen">
+            <button type="button" class="secondary" id="remix-refresh">Neu laden</button>
+          </div>
+          <p class="hint" id="remix-message" hidden></p>
+          <ul class="list" id="remix-list"></ul>
+          <details class="card tip">
+            <summary>So arbeitest du mit der ZIP weiter</summary>
+            <ol>
+              <li>ZIP entpacken. Darin steckt der komplette Code der App.</li>
+              <li>In AI Studio lassen sich Projekte über <strong>+</strong> → <strong>Import from GitHub</strong> übernehmen: den Ordner dafür in ein eigenes GitHub-Repository legen. Alternativ in einer IDE (z. B. VS Code) weiterarbeiten.</li>
+              <li>Fertig? Die neue Version als ZIP herunterladen und unter <strong>Hochladen</strong> zur Prüfung senden.</li>
+            </ol>
+          </details>
+        </div>
+      </section>
+
+      <!-- Einstellungen ------------------------------------------------------- -->
+      <section class="view" id="view-settings" aria-labelledby="settings-title" hidden>
+        <header class="view-header">
+          <h1 id="settings-title">Einstellungen</h1>
+          <p class="subtitle">Verbindung zum MuDiKo Hub und Diagnose</p>
+        </header>
+
+        <section class="card stack" aria-label="Verbindung zum Hub">
+          <div class="hub-line plain">
+            <span class="dot" id="hub-dot" aria-hidden="true"></span>
+            <strong id="hub-status" class="grow">Verbinde …</strong>
+            <button type="button" class="link" id="hub-recheck">Erneut prüfen</button>
+          </div>
+          <p class="hint" id="hub-hint" hidden></p>
+          <form id="hub-form" class="stack">
+            <label>Hub-Adresse
+              <input id="hub-url" type="url" required placeholder="http://localhost:3000">
+            </label>
+            <p class="error" id="hub-form-error" role="alert" hidden></p>
+            <button type="submit" id="hub-save">Speichern</button>
+          </form>
+        </section>
+
+        <details class="card diagnostics" open>
+          <summary>Diagnose für den Test</summary>
+          <ul id="diag-list"></ul>
+          <div class="actions">
+            <button type="button" class="secondary" id="diag-copy">Kopieren</button>
+            <button type="button" class="secondary" id="diag-clear">Leeren</button>
+          </div>
+        </details>
+      </section>
+    </main>
+  </div>
 </body>
 </html>

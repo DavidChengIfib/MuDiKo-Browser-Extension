@@ -58,6 +58,18 @@ test('hub error messages are passed on together with the HTTP status', async () 
   );
 });
 
+test('remix apps are listed and downloaded from the hub without login', async () => {
+  const calls = [];
+  const client = createHubClient('http://localhost:3000', async (url, options) => {
+    calls.push({ url, options });
+    return jsonResponse(200, { success: true, apps: [{ slug: 'pitch-piano', name: 'Pitch Piano' }] });
+  });
+  const apps = await client.listRemixApps();
+  assert.deepEqual(apps.map((app) => app.slug), ['pitch-piano']);
+  assert.equal(calls[0].url, 'http://localhost:3000/api/app-hub/remix');
+  assert.equal(client.remixDownloadUrl('pitch piano'), 'http://localhost:3000/api/app-hub/remix/pitch%20piano/download');
+});
+
 test('an unreachable hub is reported with status 0', async () => {
   const client = createHubClient('http://localhost:3000', async () => { throw new TypeError('Failed to fetch'); });
   await assert.rejects(client.getStatus(), (error) => error.status === 0 && /nicht erreichbar/.test(error.message));

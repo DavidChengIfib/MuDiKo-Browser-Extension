@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "MuDiKo Hub-Upload (Prototyp)",
-  "version": "0.1.0",
-  "description": "Sendet Google-AI-Studio-Projekte als ZIP direkt in den Deployment-Bereich des MuDiKo Musik Hubs.",
+  "name": "MuDiKo für AI Studio (Prototyp)",
+  "version": "0.2.0",
+  "description": "Hilft beim Bauen von Musik-Lern-Apps in Google AI Studio (Prompts, System Instructions, Bausteine, Remix) und sendet fertige Projekte zur Prüfung an den MuDiKo Musik Hub.",
   "minimum_chrome_version": "116",
   "icons": {
     "16": "icons/icon-16.png",
@@ -11,7 +11,7 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "MuDiKo Hub-Upload öffnen",
+    "default_title": "MuDiKo öffnen",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"
@@ -24,7 +24,11 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "permissions": ["sidePanel", "storage", "downloads"],
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "downloads"
+  ],
   "host_permissions": [
     "http://localhost/*",
     "http://127.0.0.1/*",
@@ -32,20 +36,40 @@
     "https://aistudio.google.com/*",
     "https://ai.studio/*"
   ],
-  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
   "content_scripts": [
     {
-      "matches": ["https://aistudio.google.com/*", "https://ai.studio/*"],
-      "js": ["capture-main.js"],
+      "matches": [
+        "https://aistudio.google.com/*",
+        "https://ai.studio/*"
+      ],
+      "js": [
+        "capture-main.js"
+      ],
       "world": "MAIN",
       "run_at": "document_start",
       "all_frames": true
     },
     {
-      "matches": ["https://aistudio.google.com/*", "https://ai.studio/*"],
-      "js": ["capture-bridge.js"],
+      "matches": [
+        "https://aistudio.google.com/*",
+        "https://ai.studio/*"
+      ],
+      "js": [
+        "content-toast.js",
+        "capture-bridge.js",
+        "studio-helper.js"
+      ],
       "run_at": "document_start",
       "all_frames": true
     }
-  ]
+  ],
+  "sandbox": {
+    "pages": [
+      "preview.html"
+    ]
+  }
 }
